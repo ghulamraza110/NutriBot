@@ -12,7 +12,7 @@ BLOCKLIST = {
 }
 
 
-def validator_node(state: RecipeState) -> dict:
+async def validator_node(state: RecipeState) -> dict:
     ingredients = state["ingredients"].strip()
 
     if len(ingredients) < 3:

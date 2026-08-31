@@ -16,7 +16,7 @@ llm = ChatOpenAI(
 chef_llm = llm.with_structured_output(Recipe)
 
 
-def chef_node(state: RecipeState) -> dict:
+async def chef_node(state: RecipeState) -> dict:
     ingredients = state["ingredients"]
     critique = state.get("critique", "")
     iteration = state.get("iteration", 0) + 1
@@ -36,7 +36,7 @@ def chef_node(state: RecipeState) -> dict:
     else:
         user = f"Ingredients: {ingredients}\n\nWrite a complete recipe."
 
-    recipe: Recipe = chef_llm.invoke([
+    recipe: Recipe = await chef_llm.ainvoke([
         SystemMessage(content=system),
         HumanMessage(content=user),
     ])

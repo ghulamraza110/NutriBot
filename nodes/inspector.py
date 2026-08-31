@@ -16,7 +16,7 @@ llm = ChatOpenAI(
 inspector_llm = llm.with_structured_output(InspectorResult)
 
 
-def inspector_node(state: RecipeState) -> dict:
+async def inspector_node(state: RecipeState) -> dict:
     recipe = state["recipe_proposal"]
     ingredients = state["ingredients"]
 
@@ -34,7 +34,7 @@ def inspector_node(state: RecipeState) -> dict:
         f"Recipe to evaluate:\n{recipe}"
     )
 
-    result: InspectorResult = inspector_llm.invoke([
+    result: InspectorResult = await inspector_llm.ainvoke([
         SystemMessage(content=system),
         HumanMessage(content=user),
     ])

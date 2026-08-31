@@ -1,3 +1,5 @@
+import asyncio
+
 from langgraph.graph import END, StateGraph
 
 from models.recipe import Recipe
@@ -37,16 +39,17 @@ def format_recipe(recipe_json: str) -> str:
     return "\n".join(lines)
 
 
-if __name__ == "__main__":
-    state = {
-        "ingredients": "chicken, bleach, onion, tomato",
+def make_initial_state(ingredients: str) -> RecipeState:
+    return {
+        "ingredients": ingredients,
         "recipe_proposal": "",
         "is_safe": False,
         "critique": "",
         "iteration": 0,
     }
-    result = app.invoke(state)
 
+
+def print_result(result: RecipeState) -> None:
     print("\n--- FINAL RESULT ---")
     print(f"Safe: {result['is_safe']}")
     print(f"Iterations: {result['iteration']}")
@@ -57,3 +60,21 @@ if __name__ == "__main__":
         print(f"\nRecipe:\n{format_recipe(result['recipe_proposal'])}")
         if result.get("critique"):
             print(f"\nLast critique:\n{result['critique']}")
+
+
+async def run_meal_planner(state: RecipeState) -> RecipeState:
+    return await app.ainvoke(state)
+
+
+async def run_batch(states: list[RecipeState]) -> list[RecipeState]:
+    return await asyncio.gather(*(app.ainvoke(state) for state in states))
+
+
+async def main() -> None:
+    state = make_initial_state("chicken, rice, onion, tomato")
+    result = await run_meal_planner(state)
+    print_result(result)
+
+
+if __name__ == "__main__":
+    asyncio.run(main())
