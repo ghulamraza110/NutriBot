@@ -2,6 +2,7 @@ from dotenv import load_dotenv
 from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_openai import ChatOpenAI
 
+from models.recipe import Recipe
 from models.state import RecipeState
 
 load_dotenv()
@@ -9,9 +10,10 @@ load_dotenv()
 llm = ChatOpenAI(
     model="openai/gpt-4o-mini",
     base_url="https://openrouter.ai/api/v1",
-    max_tokens=2000,  # <--- ADD THIS LINE to lower the required credit reservation
+    max_tokens=2000,
     temperature=0.7,
 )
+chef_llm = llm.with_structured_output(Recipe)
 
 
 def chef_node(state: RecipeState) -> dict:
@@ -34,14 +36,12 @@ def chef_node(state: RecipeState) -> dict:
     else:
         user = f"Ingredients: {ingredients}\n\nWrite a complete recipe."
 
-    response = llm.invoke(
-        [
-            SystemMessage(content=system),
-            HumanMessage(content=user),
-        ]
-    )
+    recipe: Recipe = chef_llm.invoke([
+        SystemMessage(content=system),
+        HumanMessage(content=user),
+    ])
 
     return {
-        "recipe_proposal": response.content,
+        "recipe_proposal": recipe.model_dump_json(indent=2),
         "iteration": iteration,
     }
