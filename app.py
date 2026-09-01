@@ -8,6 +8,9 @@ from nodes.chef import chef_node
 from nodes.inspector import inspector_node
 from nodes.validator import validator_node
 from utils.routing import route_after_validation, route_kitchen
+from utils.tracing import make_run_config, setup_langsmith
+
+setup_langsmith()
 
 workflow = StateGraph(RecipeState)
 workflow.add_node("validator", validator_node)
@@ -62,12 +65,18 @@ def print_result(result: RecipeState) -> None:
             print(f"\nLast critique:\n{result['critique']}")
 
 
-async def run_meal_planner(state: RecipeState) -> RecipeState:
-    return await app.ainvoke(state)
+async def run_meal_planner(
+    state: RecipeState,
+    run_name: str = "meal-planner",
+) -> RecipeState:
+    config = make_run_config(state, run_name=run_name)
+    return await app.ainvoke(state, config=config)
 
 
 async def run_batch(states: list[RecipeState]) -> list[RecipeState]:
-    return await asyncio.gather(*(app.ainvoke(state) for state in states))
+    return await asyncio.gather(
+        *(run_meal_planner(state, run_name=f"meal-planner-{i}") for i, state in enumerate(states))
+    )
 
 
 async def main() -> None:

@@ -1,6 +1,7 @@
 from dotenv import load_dotenv
 from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_openai import ChatOpenAI
+from langsmith import traceable
 
 from models.recipe import Recipe
 from models.state import RecipeState
@@ -16,6 +17,7 @@ llm = ChatOpenAI(
 chef_llm = llm.with_structured_output(Recipe)
 
 
+@traceable(name="chef_node", run_type="chain")
 async def chef_node(state: RecipeState) -> dict:
     ingredients = state["ingredients"]
     critique = state.get("critique", "")

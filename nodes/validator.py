@@ -1,3 +1,5 @@
+from langsmith import traceable
+
 from models.state import RecipeState
 
 BLOCKLIST = {
@@ -12,6 +14,7 @@ BLOCKLIST = {
 }
 
 
+@traceable(name="validator_node", run_type="chain")
 async def validator_node(state: RecipeState) -> dict:
     ingredients = state["ingredients"].strip()
 
