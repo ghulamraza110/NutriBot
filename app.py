@@ -1,4 +1,5 @@
 import asyncio
+import uuid
 
 from langgraph.graph import END, StateGraph
 
@@ -7,6 +8,7 @@ from models.state import RecipeState
 from nodes.chef import chef_node
 from nodes.inspector import inspector_node
 from nodes.validator import validator_node
+from utils.persistence import compiled_app
 from utils.routing import route_after_validation, route_kitchen
 from utils.tracing import make_run_config, setup_langsmith
 
@@ -26,7 +28,6 @@ workflow.add_conditional_edges(
     "inspector", route_kitchen, {"serve": END, "recook": "chef", "stop": END}
 )
 workflow.set_entry_point("validator")
-app = workflow.compile()
 
 
 def format_recipe(recipe_json: str) -> str:
@@ -68,21 +69,46 @@ def print_result(result: RecipeState) -> None:
 async def run_meal_planner(
     state: RecipeState,
     run_name: str = "meal-planner",
+    thread_id: str | None = None,
 ) -> RecipeState:
-    config = make_run_config(state, run_name=run_name)
-    return await app.ainvoke(state, config=config)
+    thread_id = thread_id or str(uuid.uuid4())
+    config = make_run_config(state, run_name=run_name, thread_id=thread_id)
+
+    async with compiled_app(workflow) as app:
+        return await app.ainvoke(state, config=config)
+
+
+async def get_thread_state(thread_id: str) -> RecipeState | None:
+    config = {"configurable": {"thread_id": thread_id}}
+
+    async with compiled_app(workflow) as app:
+        snapshot = await app.aget_state(config)
+        if not snapshot.values:
+            return None
+        return snapshot.values
 
 
 async def run_batch(states: list[RecipeState]) -> list[RecipeState]:
     return await asyncio.gather(
-        *(run_meal_planner(state, run_name=f"meal-planner-{i}") for i, state in enumerate(states))
+        *(
+            run_meal_planner(state, run_name=f"meal-planner-{i}", thread_id=str(uuid.uuid4()))
+            for i, state in enumerate(states)
+        )
     )
 
 
 async def main() -> None:
+    thread_id = "demo-session"
     state = make_initial_state("chicken, rice, onion, tomato")
-    result = await run_meal_planner(state)
+    result = await run_meal_planner(state, thread_id=thread_id)
     print_result(result)
+
+    saved = await get_thread_state(thread_id)
+    if saved:
+        print(f"\n--- PERSISTED STATE (thread: {thread_id}) ---")
+        print(f"Safe: {saved['is_safe']}")
+        print(f"Iterations: {saved['iteration']}")
+        print(f"Ingredients: {saved['ingredients']}")
 
 
 if __name__ == "__main__":

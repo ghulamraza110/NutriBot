@@ -36,9 +36,10 @@ def make_run_config(
     state: RecipeState,
     run_name: str = "meal-planner",
     run_id: str | None = None,
+    thread_id: str | None = None,
 ) -> dict:
     """Build LangGraph/LangSmith run config with useful metadata."""
-    return {
+    config = {
         "run_name": run_name,
         "run_id": run_id or str(uuid.uuid4()),
         "tags": ["meal-planner"],
@@ -47,3 +48,6 @@ def make_run_config(
             "iteration": state.get("iteration", 0),
         },
     }
+    if thread_id is not None:
+        config["configurable"] = {"thread_id": thread_id}
+    return config
