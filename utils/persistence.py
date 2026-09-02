@@ -1,10 +1,11 @@
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 import aiosqlite
 from langgraph.checkpoint.sqlite.aio import AsyncSqliteSaver
 from langgraph.graph import StateGraph
 
-CHECKPOINT_DB = "checkpoints.db"
+CHECKPOINT_DB = str(Path(__file__).resolve().parent.parent / "checkpoints.db")
 
 
 def _patch_aiosqlite_compat() -> None:

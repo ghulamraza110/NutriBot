@@ -3,7 +3,7 @@ import uuid
 
 import streamlit as st
 
-from app import get_thread_state, make_initial_state, run_meal_planner
+from app import get_thread_state, list_saved_threads, make_initial_state, run_meal_planner
 from models.recipe import Recipe
 from utils.messages import OUT_OF_CONTEXT_MESSAGE
 
@@ -13,8 +13,41 @@ st.set_page_config(
     layout="wide",
 )
 
-if "thread_id" not in st.session_state:
-    st.session_state.thread_id = str(uuid.uuid4())
+
+def init_thread_id() -> str:
+    """Keep the same thread across page reloads via URL query params."""
+    query_thread = st.query_params.get("thread_id")
+    if query_thread:
+        st.session_state.thread_id = query_thread
+        return query_thread
+
+    if "thread_id" not in st.session_state:
+        st.session_state.thread_id = str(uuid.uuid4())
+
+    st.query_params["thread_id"] = st.session_state.thread_id
+    return st.session_state.thread_id
+
+
+def set_thread_id(thread_id: str) -> None:
+    st.session_state.thread_id = thread_id
+    st.query_params["thread_id"] = thread_id
+
+
+def load_saved_result(thread_id: str) -> bool:
+    saved = asyncio.run(get_thread_state(thread_id))
+    if not saved:
+        return False
+    st.session_state.last_result = saved
+    return True
+
+
+thread_id = init_thread_id()
+
+if "hydrated_thread" not in st.session_state:
+    if load_saved_result(thread_id):
+        st.session_state.hydrated_thread = thread_id
+    else:
+        st.session_state.hydrated_thread = ""
 
 
 def render_recipe(recipe_json: str) -> None:
@@ -83,19 +116,38 @@ with st.sidebar:
     st.header("Session")
     st.text_input("Thread ID", value=st.session_state.thread_id, disabled=True)
 
+    saved_threads = list_saved_threads()
+    if saved_threads:
+        selected_thread = st.selectbox(
+            "Saved sessions",
+            options=saved_threads,
+            index=saved_threads.index(st.session_state.thread_id)
+            if st.session_state.thread_id in saved_threads
+            else 0,
+            help="Switch to a previous saved conversation.",
+        )
+        if st.button("Open saved session", use_container_width=True):
+            set_thread_id(selected_thread)
+            if load_saved_result(selected_thread):
+                st.session_state.hydrated_thread = selected_thread
+                st.success("Loaded saved session.")
+                st.rerun()
+            else:
+                st.info("No saved state for that thread.")
+
     if st.button("New session", use_container_width=True):
-        st.session_state.thread_id = str(uuid.uuid4())
+        set_thread_id(str(uuid.uuid4()))
         st.session_state.pop("last_result", None)
+        st.session_state.hydrated_thread = ""
         st.rerun()
 
-    if st.button("Load saved state", use_container_width=True):
-        with st.spinner("Loading..."):
-            saved = asyncio.run(get_thread_state(st.session_state.thread_id))
-        if saved:
-            st.session_state.last_result = saved
+    if st.button("Reload saved state", use_container_width=True):
+        if load_saved_result(st.session_state.thread_id):
+            st.session_state.hydrated_thread = st.session_state.thread_id
             st.success("Loaded persisted state.")
+            st.rerun()
         else:
-            st.info("No saved state for this thread yet.")
+            st.info("No saved state for this thread yet. Generate a recipe first.")
 
     st.divider()
     st.markdown(
@@ -103,7 +155,8 @@ with st.sidebar:
         "1. Validator checks your ingredients\n"
         "2. Chef drafts a recipe\n"
         "3. Inspector checks safety\n"
-        "4. Unsafe recipes loop back to Chef (max 3 tries)"
+        "4. Unsafe recipes loop back to Chef (max 3 tries)\n\n"
+        "**Tip:** Your thread ID stays in the URL, so saved recipes survive page reloads."
     )
 
 ingredients = st.text_area(
@@ -137,6 +190,7 @@ if generate:
                     )
                 )
                 st.session_state.last_result = result
+                st.session_state.hydrated_thread = st.session_state.thread_id
             except Exception as exc:
                 st.error(f"Something went wrong: {exc}")
 

@@ -1,4 +1,5 @@
 import asyncio
+import sqlite3
 import uuid
 
 from langgraph.graph import END, StateGraph
@@ -8,7 +9,7 @@ from models.state import RecipeState
 from nodes.chef import chef_node
 from nodes.inspector import inspector_node
 from nodes.validator import validator_node
-from utils.persistence import compiled_app
+from utils.persistence import CHECKPOINT_DB, compiled_app
 from utils.routing import route_after_validation, route_kitchen
 from utils.tracing import make_run_config, setup_langsmith
 
@@ -87,6 +88,26 @@ async def get_thread_state(thread_id: str) -> RecipeState | None:
         if not snapshot.values:
             return None
         return snapshot.values
+
+
+def list_saved_threads(limit: int = 10) -> list[str]:
+    """Return recent thread IDs that have checkpoint data."""
+    try:
+        conn = sqlite3.connect(CHECKPOINT_DB)
+        rows = conn.execute(
+            """
+            SELECT thread_id
+            FROM checkpoints
+            GROUP BY thread_id
+            ORDER BY MAX(rowid) DESC
+            LIMIT ?
+            """,
+            (limit,),
+        ).fetchall()
+        conn.close()
+        return [row[0] for row in rows]
+    except sqlite3.Error:
+        return []
 
 
 async def run_batch(states: list[RecipeState]) -> list[RecipeState]:
