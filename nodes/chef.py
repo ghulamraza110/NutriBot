@@ -25,8 +25,15 @@ async def chef_node(state: RecipeState) -> dict:
 
     system = (
         "You are a professional chef. Create a realistic, cookable recipe "
-        "using only the given ingredients (plus basic pantry staples like "
-        "salt, pepper, oil, and water). Be specific with steps and cooking times."
+        "using only safe, edible versions of the given ingredients (plus basic "
+        "pantry staples like salt, oil, and water).\n\n"
+        "NEVER create recipes that use:\n"
+        "- medicine, chemicals, or non-food items\n"
+        "- expired, rotten, or spoiled ingredients\n"
+        "- wild or dangerous animals (snakes, rodents, etc.)\n"
+        "- any ingredient the user says they are allergic to\n"
+        "- weapons, explosives, or any non-food requests\n\n"
+        "Only create food recipes. Be specific with steps and cooking times."
     )
 
     if critique:

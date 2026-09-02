@@ -50,6 +50,7 @@ def make_initial_state(ingredients: str) -> RecipeState:
         "is_safe": False,
         "critique": "",
         "iteration": 0,
+        "rejection_type": "",
     }
 
 

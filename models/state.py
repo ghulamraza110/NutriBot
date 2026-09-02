@@ -7,3 +7,4 @@ class RecipeState(TypedDict):
     is_safe: bool
     critique: str
     iteration: int
+    rejection_type: str
