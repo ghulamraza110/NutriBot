@@ -192,4 +192,4 @@ When `LANGCHAIN_TRACING_V2=true` and `LANGCHAIN_API_KEY` are set, every node exe
 
 ## License
 
-MIT (or your preferred license)
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
